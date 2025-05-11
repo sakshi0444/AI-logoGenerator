@@ -7,23 +7,34 @@ import LogoDesc from './_components/LogoDesc'
 import LogoColorPalette from './_components/LogoColorPalette'
 import LogoDesigns from './_components/LogoDesigns'
 import LogoIdea from './_components/LogoIdea'
+import axios from 'axios'
+import { useRouter } from 'next/navigation'
 
 const CreateLogo = () => {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState()
   const [ideaGenerated, setIdeaGenerated] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const onHandleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
-    console.log(formData)
   }
 
   const handleGenerateIdeas = () => {
-    // simply mark that generation has been triggered
+    // Mark that generation has been triggered
     setIdeaGenerated(true)
+  }
+
+  const proceedToResult = () => {
+    // Make sure we've stored the formData in localStorage
+    if (formData) {
+      localStorage.setItem('formData', JSON.stringify(formData))
+      router.push('/result')
+    }
   }
 
   return (
@@ -64,9 +75,30 @@ const CreateLogo = () => {
         )}
 
         {step === 5 ? (
-          <Button className='bg-[#ed1e61]' onClick={handleGenerateIdeas}>
-            <Wand2 className='mr-2' /> Generate
-          </Button>
+          <>
+            {!ideaGenerated ? (
+              <Button 
+                className='bg-[#ed1e61]' 
+                onClick={handleGenerateIdeas}
+                disabled={loading}
+              >
+                <Wand2 className='mr-2' /> Generate Ideas
+              </Button>
+            ) : (
+              <Button 
+                className='bg-[#ed1e61]' 
+                onClick={proceedToResult}
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Wand2 className='mr-2' />
+                )} 
+                Create Logo
+              </Button>
+            )}
+          </>
         ) : (
           <Button onClick={() => setStep(step + 1)} className='bg-[#ed1e61]'>
             <ArrowRight /> Continue
