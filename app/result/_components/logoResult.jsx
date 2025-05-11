@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import Lookup from '../_data/Lookup';
+import Lookup from '@/app/_data/Lookup';
 import axios from 'axios';
 
 function LogoResult() {
@@ -88,10 +88,10 @@ function LogoResult() {
           <div className="flex flex-col items-center justify-center py-20">
             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#ed1e61] mb-4"></div>
             <h2 className="text-2xl font-bold text-[#ed1e61]">
-              {Lookup.LoadingWaitTitle}
+              {Lookup.LoadingWaitTitle || "Your logo is being created"}
             </h2>
             <p className="text-gray-500 mt-2 text-center">
-              {Lookup.LoadingWaitDesc}
+              {Lookup.LoadingWaitDesc || "✨ Please wait a moment while we work our magic to bring your logo to life."}
             </p>
           </div>
         ) : error ? (

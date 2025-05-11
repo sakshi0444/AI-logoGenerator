@@ -9,16 +9,16 @@ const openai = new OpenAI({
 
 export async function POST(request) {
   try {
+    // Parse request body
     const { prompt } = await request.json();
-    
+
     if (!prompt) {
-      return NextResponse.json(
-        { error: 'Prompt is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Call DALL-E to generate the logo image
+    console.log("Received prompt for logo generation:", prompt);
+
+    // Call DALL-E API to generate an image
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt: prompt,
@@ -28,15 +28,23 @@ export async function POST(request) {
       response_format: "url",
     });
 
-    // Return the generated image URL
-    return NextResponse.json({ 
+    console.log("DALL-E API Response:", response);
+
+    // Validate response structure
+    if (!response || !response.data || !response.data.length || !response.data[0].url) {
+      throw new Error("Invalid response from OpenAI API");
+    }
+
+    return NextResponse.json({
       imageUrl: response.data[0].url,
       prompt: prompt
     });
+
   } catch (error) {
-    console.error('Error in logo generation API:', error);
+    console.error("Error in logo generation API:", error);
+
     return NextResponse.json(
-      { error: 'Failed to generate logo' },
+      { error: error.message || 'Failed to generate logo' },
       { status: 500 }
     );
   }

@@ -1,34 +1,175 @@
 "use client"
 import React, { useEffect, useState } from 'react'
 import Prompt from '../_data/Prompt';
+import axios from 'axios';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Download, Share2, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-function page  () {
-    const[formData,setFormData]=useState();
-   useEffect(()=>{
-        if(typeof window != 'undefined'){
-            const storage=localStorage.getItem('formData')
-            if(storage){
+function GenerateLogoPage() {
+    const [formData, setFormData] = useState();
+    const [logoData, setLogoData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        if(typeof window !== 'undefined') {
+            const storage = localStorage.getItem('formData')
+            if(storage) {
                 setFormData(JSON.parse(storage))
-                console.log(JSON.parse(storage))
+            } else {
+                // Redirect to create page if no data
+                router.push('/create');
             }
         }
-   },[])
-   useEffect(()=>{
-    if(formData?.title){
-        GenerateAILogo();
-    }
-   },[formData])
-   const GenerateAILogo=()=>{
-    const PROMPT= Prompt.LOGO_PROMPT.replace('{logoTitle}',formData?.title)
-    .replace('{logoDesc}', formData?.desc )
-    .replace('{logoColor}',formData?.palette)
-    .replace('{logoDesign}',formData?.design?.title)
-    .replace('{logoPrompt}',formData?.design?.Prompt);
-    console.log(PROMPT);
-   }
-  return (
-    <div>page</div>
-  )
+    }, [router]);
+
+    useEffect(() => {
+        if(formData?.title) {
+            GenerateAILogo();
+        }
+    }, [formData]);
+
+    const GenerateAILogo = async () => {
+        try {
+            setLoading(true);
+            // Generate the prompt
+            const PROMPT = Prompt.LOGO_PROMPT
+                .replace('{logoTitle}', formData?.title)
+                .replace('{logoDesc}', formData?.desc)
+                .replace('{logoColor}', formData?.palette)
+                .replace('{logoDesign}', formData?.design?.title)
+                .replace('{logoPrompt}', formData?.design?.prompt)
+                .replace('{logoIdea}', formData?.idea || 'best possible design');
+
+            console.log("Generating logo with prompt:", PROMPT);
+            
+            // Call the API to generate the logo
+            const response = await axios.post('/api/generate-logo', {
+                prompt: PROMPT,
+            });
+            
+            setLogoData(response.data);
+        } catch (err) {
+            console.error('Error generating logo:', err);
+            setError('Failed to generate logo. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const downloadLogo = async () => {
+        if (!logoData?.imageUrl) return;
+        
+        try {
+            // Fetch the image
+            const response = await fetch(logoData.imageUrl);
+            const blob = await response.blob();
+            
+            // Create a download link
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `${formData.title.replace(/\s+/g, '-').toLowerCase()}-logo.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error('Error downloading logo:', err);
+            alert('Failed to download the logo. Please try again.');
+        }
+    };
+
+    return (
+        <div className="flex flex-col items-center min-h-screen py-10">
+            <div className="max-w-3xl w-full mx-auto px-4">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#ed1e61] mb-4"></div>
+                        <h2 className="text-2xl font-bold text-[#ed1e61]">
+                            Your logo is being created
+                        </h2>
+                        <p className="text-gray-500 mt-2 text-center">
+                            ✨ Please wait a moment while we work our magic to bring your logo to life.
+                        </p>
+                    </div>
+                ) : error ? (
+                    <div className="text-center py-10">
+                        <h2 className="text-xl font-bold text-red-500 mb-4">{error}</h2>
+                        <Link href="/create">
+                            <Button className="bg-[#ed1e61] mt-4">
+                                <ArrowLeft className="mr-2" /> Start Over
+                            </Button>
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center">
+                        <h1 className="text-3xl font-bold text-[#ed1e61] mb-2">
+                            Your Logo is Ready!
+                        </h1>
+                        <p className="text-gray-500 mb-8 text-center">
+                            Here's your custom logo for {formData?.title}. You can download it or share it.
+                        </p>
+                        
+                        <div className="relative w-full max-w-md aspect-square rounded-xl shadow-lg overflow-hidden mb-8">
+                            {logoData?.imageUrl && (
+                                <Image 
+                                    src={logoData.imageUrl} 
+                                    alt={`${formData?.title} logo`} 
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            )}
+                        </div>
+                        
+                        <div className="flex gap-4 mb-10">
+                            <Button
+                                className="bg-[#ed1e61]"
+                                onClick={downloadLogo}
+                            >
+                                <Download className="mr-2" /> Download Logo
+                            </Button>
+                            <Button variant="outline">
+                                <Share2 className="mr-2" /> Share
+                            </Button>
+                        </div>
+                        
+                        <div className="w-full bg-gray-50 p-6 rounded-lg mb-8">
+                            <h2 className="font-bold text-lg mb-2">Logo Details</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-gray-500">Name</p>
+                                    <p className="font-medium">{formData?.title}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Style</p>
+                                    <p className="font-medium">{formData?.design?.title}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Color Palette</p>
+                                    <p className="font-medium">{formData?.palette}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Design Idea</p>
+                                    <p className="font-medium">{formData?.idea || 'AI generated'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <Link href="/create">
+                            <Button variant="outline">
+                                <ArrowLeft className="mr-2" /> Create Another Logo
+                            </Button>
+                        </Link>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
-export default page
+export default GenerateLogoPage

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize OpenAI client - you'll need to set OPENAI_API_KEY in your .env.local file
+// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -10,7 +10,7 @@ const openai = new OpenAI({
 export async function POST(request) {
   try {
     const { prompt } = await request.json();
-    
+
     if (!prompt) {
       return NextResponse.json(
         { error: 'Prompt is required' },
@@ -18,8 +18,10 @@ export async function POST(request) {
       );
     }
 
+    console.log("Processing design ideas prompt:", prompt);
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4", // or another suitable model
+      model: "gpt-4", // Adjust model as needed
       messages: [
         {
           role: "system",
@@ -30,19 +32,44 @@ export async function POST(request) {
           content: prompt
         }
       ],
-      response_format: { type: "json_object" },
+      response_format: { type: "json_object" }, // Ensuring structured output
       temperature: 0.8,
     });
 
-    // Extract the ideas from the response
-    const result = JSON.parse(response.choices[0].message.content);
-    
-    return NextResponse.json({ ideas: result.ideas || [] });
+    // Log the full response for debugging
+    console.log("OpenAI API response:", response);
+
+    // Ensure response structure is valid
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error("Unexpected response structure from OpenAI API.");
+    }
+
+    const content = response.choices[0].message.content;
+
+    let result;
+    try {
+      result = JSON.parse(content);
+
+      // Ensure ideas array is present
+      if (!result.ideas || !Array.isArray(result.ideas)) {
+        result = { ideas: ["Modern minimal design", "Bold vibrant concept", "Elegant professional look", "Creative abstract mark"] };
+      }
+    } catch (parseError) {
+      console.error("Error parsing JSON response:", parseError);
+      result = { ideas: ["Modern minimal design", "Bold vibrant concept", "Elegant professional look", "Creative abstract mark"] };
+    }
+
+    return NextResponse.json({ ideas: result.ideas });
+
   } catch (error) {
     console.error('Error in AI design ideas API:', error);
+
     return NextResponse.json(
-      { error: 'Failed to generate design ideas' },
-      { status: 500 }
+      { 
+        error: 'Failed to generate design ideas', 
+        ideas: ["Modern minimal design", "Bold vibrant concept", "Elegant professional look", "Creative abstract mark"] 
+      },
+      { status: 500 } // Return proper error status
     );
   }
 }
