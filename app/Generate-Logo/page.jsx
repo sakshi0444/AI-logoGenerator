@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Lookup from '../_data/Lookup';
 
 function GenerateLogoPage() {
     const [formData, setFormData] = useState();
@@ -19,7 +20,8 @@ function GenerateLogoPage() {
         if(typeof window !== 'undefined') {
             const storage = localStorage.getItem('formData')
             if(storage) {
-                setFormData(JSON.parse(storage))
+                const parsedData = JSON.parse(storage);
+                setFormData(parsedData);
             } else {
                 // Redirect to create page if no data
                 router.push('/create');
@@ -36,8 +38,10 @@ function GenerateLogoPage() {
     const GenerateAILogo = async () => {
         try {
             setLoading(true);
-            // Generate the prompt
-            const PROMPT = Prompt.LOGO_PROMPT
+            setError(null);
+
+            // Construct the prompt for the logo generation
+            const logoPrompt = Prompt.LOGO_PROMPT
                 .replace('{logoTitle}', formData?.title)
                 .replace('{logoDesc}', formData?.desc)
                 .replace('{logoColor}', formData?.palette)
@@ -45,11 +49,11 @@ function GenerateLogoPage() {
                 .replace('{logoPrompt}', formData?.design?.prompt)
                 .replace('{logoIdea}', formData?.idea || 'best possible design');
 
-            console.log("Generating logo with prompt:", PROMPT);
+            console.log("Generating logo with prompt:", logoPrompt);
             
             // Call the API to generate the logo
             const response = await axios.post('/api/generate-logo', {
-                prompt: PROMPT,
+                prompt: logoPrompt,
             });
             
             setLogoData(response.data);
@@ -90,10 +94,10 @@ function GenerateLogoPage() {
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#ed1e61] mb-4"></div>
                         <h2 className="text-2xl font-bold text-[#ed1e61]">
-                            Your logo is being created
+                            {Lookup.LoadingWaitTitle || "Your logo is being created"}
                         </h2>
                         <p className="text-gray-500 mt-2 text-center">
-                            ✨ Please wait a moment while we work our magic to bring your logo to life.
+                            {Lookup.LoadingWaitDesc || "✨ Please wait a moment while we work our magic to bring your logo to life."}
                         </p>
                     </div>
                 ) : error ? (
