@@ -1,6 +1,7 @@
-// provider.js
+// Fix 2: Correct the import case sensitivity in provider.jsx
+
 import React from 'react';
-import Header from './_components/header';
+import Header from './_components/Header'; // Corrected capitalization to match the file name
 
 function Provider({ children }) {
   return (
@@ -14,4 +15,4 @@ function Provider({ children }) {
   );
 }
 
-export default Provider; // ✅ This is a default export
+export default Provider;
