@@ -9,9 +9,14 @@ const openai = new OpenAI({
 export async function POST(request) {
   try {
     // Parse request body
-    const { prompt } = await request.json();
+    const body = await request.json();
+    const prompt = body.prompt;
+
+    console.log("Received logo generation request");
+    console.log("Prompt:", prompt);
 
     if (!prompt) {
+      console.error("No prompt provided");
       return NextResponse.json({ 
         error: 'Prompt is required',
         status: 400 
@@ -38,6 +43,7 @@ export async function POST(request) {
 
       // Validate response structure
       if (!response || !response.data || !response.data.length || !response.data[0].url) {
+        console.error("Invalid DALL-E API response:", response);
         return NextResponse.json({
           error: "Failed to generate a valid image URL",
           details: response
@@ -50,7 +56,15 @@ export async function POST(request) {
       });
 
     } catch (openaiError) {
-      console.error("OpenAI API Full Error:", JSON.stringify(openaiError, Object.getOwnPropertyNames(openaiError), 2));
+      console.error("Complete OpenAI Error Object:", JSON.stringify(openaiError, null, 2));
+      console.error("OpenAI Error Name:", openaiError.name);
+      console.error("OpenAI Error Message:", openaiError.message);
+      console.error("OpenAI Error Code:", openaiError.code);
+      
+      // Log the full error response if available
+      if (openaiError.response) {
+        console.error("OpenAI Response Error:", JSON.stringify(openaiError.response.data, null, 2));
+      }
 
       // More comprehensive error handling
       let errorMessage = 'Failed to generate logo through AI service';
@@ -111,4 +125,16 @@ function sanitizePrompt(prompt) {
   }
 
   return sanitized;
+}
+
+// Explicitly handle OPTIONS request for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }

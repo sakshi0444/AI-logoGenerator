@@ -4,7 +4,7 @@ import Prompt from '../_data/Prompt';
 import axios from 'axios';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Download, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Lookup from '../_data/Lookup';
@@ -56,29 +56,41 @@ function GenerateLogoPage() {
 
             console.log("Generating logo with prompt:", logoPrompt);
             
-            // Call the API to generate the logo
-            const response = await axios.post('/api/generate-logo', {
-                prompt: logoPrompt,
-            }, {
-                timeout: 45000, // Increased timeout to 45 seconds
-                validateStatus: function (status) {
-                    return status >= 200 && status < 500; // Reject only if status is 500 or above
+            try {
+                // Call the API to generate the logo
+                const response = await axios.post('/api/generate-logo', 
+                    { prompt: logoPrompt },
+                    {
+                        timeout: 45000, // Increased timeout to 45 seconds
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                
+                // Check for error in response
+                if (response.data.error) {
+                    throw {
+                        message: response.data.error,
+                        details: response.data.details || {}
+                    };
                 }
-            });
-            
-            // Check for error in response
-            if (response.data.error) {
-                throw {
-                    message: response.data.error,
-                    details: response.data.details || {}
-                };
-            }
 
-            if (!response.data.imageUrl) {
-                throw new Error('No image URL returned from logo generation');
-            }
+                if (!response.data.imageUrl) {
+                    throw new Error('No image URL returned from logo generation');
+                }
 
-            setLogoData(response.data);
+                setLogoData(response.data);
+            } catch (axiosError) {
+                console.error('Axios Error Details:', {
+                    message: axiosError.message,
+                    response: axiosError.response?.data,
+                    status: axiosError.response?.status,
+                    headers: axiosError.response?.headers
+                });
+
+                throw axiosError;
+            }
         } catch (err) {
             console.error('Error generating logo:', err);
             
@@ -175,9 +187,40 @@ function GenerateLogoPage() {
                         </div>
                     </div>
                 ) : (
-                    // ... rest of the existing render code remains the same
                     <div className="flex flex-col items-center">
-                        {/* ... existing success state JSX ... */}
+                        <h1 className="text-3xl font-bold text-[#ed1e61] mb-2">
+                            Your Logo is Ready!
+                        </h1>
+                        <p className="text-gray-500 mb-8 text-center">
+                            Here's your custom logo for {formData?.title}. You can download it or share it.
+                        </p>
+                        
+                        <div className="relative w-full max-w-md aspect-square rounded-xl shadow-lg overflow-hidden mb-8">
+                            {logoData?.imageUrl && (
+                                <Image 
+                                    src={logoData.imageUrl} 
+                                    alt={`${formData?.title} logo`} 
+                                    fill
+                                    className="object-contain"
+                                    priority
+                                />
+                            )}
+                        </div>
+                        
+                        <div className="flex gap-4 mb-10">
+                            <Button
+                                className="bg-[#ed1e61]"
+                                onClick={downloadLogo}
+                            >
+                                <Download className="mr-2" /> Download Logo
+                            </Button>
+                            <Button 
+                                variant="outline"
+                                onClick={() => GenerateAILogo()}
+                            >
+                                <RefreshCw className="mr-2" /> Regenerate
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -185,4 +228,4 @@ function GenerateLogoPage() {
     );
 }
 
-export default GenerateLogoPage
+export default GenerateLogoPage;
