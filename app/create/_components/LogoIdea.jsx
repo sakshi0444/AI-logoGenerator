@@ -10,6 +10,7 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState(formData?.idea);
   const [error, setError] = useState(null);
+  const [generationAttempted, setGenerationAttempted] = useState(false);
 
   useEffect(() => {
     if (
@@ -24,22 +25,52 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
   }, [formData]);
 
   useEffect(() => {
+    // Only attempt generation once when triggerGeneration becomes true
     if (
       triggerGeneration &&
+      !generationAttempted &&
       formData?.title &&
       formData?.desc &&
       formData?.design?.title &&
       formData?.design?.prompt
     ) {
+      setGenerationAttempted(true);
       generateLogoDesignIdea();
     }
-  }, [triggerGeneration]);
+  }, [triggerGeneration, generationAttempted, formData]);
 
   const generateLogoDesignIdea = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Create the API endpoint for our mock ideas
+      // In production, this would call your actual API
+      // For now, let's simulate a response
+      console.log("Would generate ideas with formData:", formData);
+      
+      // Mock response if API isn't available
+      setTimeout(() => {
+        const mockIdeas = [
+          `${formData.design.title} for ${formData.title}`,
+          `Modern ${formData.title} design`,
+          `Creative ${formData.title} emblem`,
+          `Professional ${formData.title} symbol`,
+          `Unique ${formData.title} mark`
+        ];
+        
+        setIdeas(mockIdeas);
+        setLoading(false);
+        
+        // Auto-select first idea if none is selected yet
+        if (!selectedOption) {
+          setSelectedOption(mockIdeas[0]);
+          onHandleInputChange(mockIdeas[0]);
+        }
+      }, 1500);
+      
+      // Uncomment this for real API call when ready:
+      /*
       const PROMPT = Prompt.DESIGN_IDEA_PROMPT
         .replace("{logoType}", formData.design.title)
         .replace("{logoTitle}", formData.title)
@@ -52,17 +83,22 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
         prompt: PROMPT,
       });
 
-      console.log("API Response:", result.data);
-
       if (result.data?.ideas && Array.isArray(result.data.ideas)) {
         setIdeas(result.data.ideas);
+        
+        // Auto-select first idea if none is selected yet
+        if (result.data.ideas.length > 0 && !selectedOption) {
+          setSelectedOption(result.data.ideas[0]);
+          onHandleInputChange(result.data.ideas[0]);
+        }
       } else {
         throw new Error("Invalid API response format");
       }
+      */
+      
     } catch (error) {
       console.error("Error generating logo ideas:", error);
       setError("Failed to generate ideas. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
