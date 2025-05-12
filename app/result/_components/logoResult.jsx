@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Share2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Lookup from '@/app/_data/Lookup';
@@ -56,26 +56,45 @@ function LogoResult() {
       
       // Construct the prompt for the logo generation using the existing LOGO_PROMPT template
       const logoPrompt = Prompt.LOGO_PROMPT
-        .replace('{logoTitle}', formData.title)
-        .replace('{logoDesc}', formData.desc)
+        .replace('{logoTitle}', formData.title || 'Company Logo')
+        .replace('{logoDesc}', formData.desc || 'Professional logo design')
         .replace('{logoColor}', formData.palette || 'vibrant colors')
-        .replace('{logoDesign}', formData.design.title)
-        .replace('{logoPrompt}', formData.design.prompt)
+        .replace('{logoDesign}', formData.design?.title || 'modern')
+        .replace('{logoPrompt}', formData.design?.prompt || '')
         .replace('{logoIdea}', formData.idea || 'best possible design');
       
       // Call the API to generate the logo
       const response = await axios.post('/api/generate-logo', {
         prompt: logoPrompt,
+      }, {
+        timeout: 60000 // Increased timeout to 60 seconds
       });
+      
+      // Validate response
+      if (!response.data.imageUrl) {
+        throw new Error('No image URL generated');
+      }
       
       setLogoData(response.data);
       setLoading(false);
     } catch (err) {
       console.error('Error generating logo:', err);
       
-      // Set more descriptive error message
-      const errorMessage = err.response?.data?.message || 
-        'Failed to generate logo. Please try again.';
+      // More detailed error handling
+      let errorMessage = 'Failed to generate logo. Please try again.';
+      
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          // Server responded with an error
+          errorMessage = err.response.data.error || 
+            `Server error: ${err.response.status}`;
+        } else if (err.request) {
+          // Request made but no response received
+          errorMessage = 'No response received from server. Please check your internet connection.';
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       
       setError(errorMessage);
       setLoading(false);
@@ -94,7 +113,7 @@ function LogoResult() {
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `${formData.title.replace(/\s+/g, '-').toLowerCase()}-logo.png`;
+      link.download = `${(formData.title || 'logo').replace(/\s+/g, '-').toLowerCase()}-logo.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -138,12 +157,11 @@ function LogoResult() {
               >
                 <RefreshCw className="mr-2" /> Retry Generation
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleStartOver}
-              >
-                <ArrowLeft className="mr-2" /> Start Over
-              </Button>
+              <Link href="/create">
+                <Button variant="outline">
+                  <ArrowLeft className="mr-2" /> Start Over
+                </Button>
+              </Link>
             </div>
           </div>
         ) : (
@@ -152,14 +170,14 @@ function LogoResult() {
               Your Logo is Ready!
             </h1>
             <p className="text-gray-500 mb-8 text-center">
-              Here's your custom logo for {formData?.title}. You can download it or share it.
+              Here's your custom logo for {formData?.title || 'your brand'}. You can download it or share it.
             </p>
             
             <div className="relative w-full max-w-md aspect-square rounded-xl shadow-lg overflow-hidden mb-8">
               {logoData?.imageUrl && (
                 <Image 
                   src={logoData.imageUrl} 
-                  alt={`${formData?.title} logo`} 
+                  alt={`${formData?.title || 'brand'} logo`} 
                   fill
                   className="object-contain"
                   priority
@@ -187,11 +205,11 @@ function LogoResult() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-500">Name</p>
-                  <p className="font-medium">{formData?.title}</p>
+                  <p className="font-medium">{formData?.title || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Style</p>
-                  <p className="font-medium">{formData?.design?.title}</p>
+                  <p className="font-medium">{formData?.design?.title || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Color Palette</p>
@@ -211,12 +229,11 @@ function LogoResult() {
               >
                 <RefreshCw className="mr-2" /> Regenerate Logo
               </Button>
-              <Button 
-                variant="outline"
-                onClick={handleStartOver}
-              >
-                <ArrowLeft className="mr-2" /> Create Another Logo
-              </Button>
+              <Link href="/create">
+                <Button variant="outline">
+                  <ArrowLeft className="mr-2" /> Create Another Logo
+                </Button>
+              </Link>
             </div>
           </div>
         )}

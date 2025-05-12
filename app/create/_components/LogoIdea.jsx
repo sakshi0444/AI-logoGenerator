@@ -9,14 +9,18 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
   const [selectedOption, setSelectedOption] = useState(formData?.idea);
   const [error, setError] = useState(null);
 
-  // Predefined logo concept ideas for a cat service
-  const catServiceLogoIdeas = [
-    "Minimalist cat silhouette symbolizing care and precision",
-    "Elegant line art representing gentle pet handling",
-    "Modern geometric cat icon with professional undertones",
-    "Simplified paw print integrated with clean typography",
-    "Abstract cat outline showcasing movement and grace",
-    "Negative space design highlighting cat and service connection"
+  // Predefined logo concept ideas for various brands and industries
+  const logoIdeas = [
+    "Minimalist geometric icon symbolizing innovation",
+    "Elegant line art representing brand essence",
+    "Modern abstract symbol showcasing creativity",
+    "Simplified iconic design with clean typography",
+    "Dynamic negative space concept",
+    "Versatile and memorable visual identity",
+    "Conceptual representation of brand values",
+    "Sleek and professional brand mark",
+    "Innovative visual metaphor",
+    "Timeless and adaptable logo design"
   ];
 
   useEffect(() => {
@@ -30,7 +34,7 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
     setLoading(true);
     
     // Use predefined ideas with some randomization
-    const generatedIdeas = [...catServiceLogoIdeas]
+    const generatedIdeas = [...logoIdeas]
       .sort(() => 0.5 - Math.random()) // Shuffle array
       .slice(0, 4); // Take first 4 ideas
 
@@ -49,7 +53,7 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
     <div className="my-10">
       <HeadingDescription
         title="Select Your Design Idea"
-        description="Choose a design concept that best represents your cat service brand."
+        description="Choose a design concept that best represents your brand's unique identity."
       />
 
       <div className="flex items-center justify-center">
@@ -76,12 +80,12 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
 
         <h2
           onClick={() => {
-            const aiSelectedIdea = "Sophisticated cat service logo with modern elegance";
+            const aiSelectedIdea = "Sophisticated logo with modern brand essence";
             setSelectedOption(aiSelectedIdea);
             onHandleInputChange(aiSelectedIdea);
           }}
           className={`p-2 rounded-full border px-3 cursor-pointer hover:border-primary ${
-            selectedOption === "Sophisticated cat service logo with modern elegance" 
+            selectedOption === "Sophisticated logo with modern brand essence" 
               ? "border-primary" 
               : ""
           }`}

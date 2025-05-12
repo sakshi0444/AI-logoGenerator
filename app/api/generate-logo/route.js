@@ -8,8 +8,18 @@ const openai = new OpenAI({
 
 export async function POST(request) {
   try {
-    // Parse request body
-    const body = await request.json();
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return NextResponse.json({ 
+        error: 'Invalid request body',
+        details: parseError.message
+      }, { status: 400 });
+    }
+
     const prompt = body.prompt;
 
     console.log("Received logo generation request");
@@ -22,35 +32,46 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Enhanced prompt sanitization
-    const sanitizedPrompt = sanitizePrompt(prompt);
+    // Enhanced prompt construction and sanitization
+    const sanitizedPrompt = constructEnhancedPrompt(prompt);
 
     console.log("Sanitized prompt for logo generation:", sanitizedPrompt);
 
     try {
-      // Call DALL-E API to generate an image
+      // Call DALL-E API to generate an image with more flexible options
       const response = await openai.images.generate({
         model: "dall-e-3",
         prompt: sanitizedPrompt,
         n: 1,
         size: "1024x1024",
         quality: "standard",
+        style: "vivid", // Added style option for more consistent results
         response_format: "url",
       });
 
       console.log("DALL-E API Full Response:", JSON.stringify(response, null, 2));
 
-      // Validate response structure
-      if (!response || !response.data || !response.data.length || !response.data[0].url) {
-        console.error("Invalid DALL-E API response:", response);
+      // Validate response structure with multiple checks
+      if (!response || !response.data || !response.data.length) {
+        console.error("No image data in DALL-E response", response);
         return NextResponse.json({
-          error: "Failed to generate a valid image URL",
+          error: "Failed to generate image: No image data",
+          details: response
+        }, { status: 500 });
+      }
+
+      const imageUrl = response.data[0].url;
+
+      if (!imageUrl) {
+        console.error("No image URL in DALL-E response", response);
+        return NextResponse.json({
+          error: "Failed to generate image: No image URL",
           details: response
         }, { status: 500 });
       }
 
       return NextResponse.json({
-        imageUrl: response.data[0].url,
+        imageUrl: imageUrl,
         prompt: sanitizedPrompt
       });
 
@@ -62,33 +83,29 @@ export async function POST(request) {
         code: openaiError.code,
         type: openaiError.type,
         param: openaiError.param,
-        status: openaiError.status
+        status: openaiError.status,
+        stack: openaiError.stack
       });
 
       // More detailed error response
       let errorMessage = 'Failed to generate logo through AI service';
       let errorDetails = {};
 
-      // Handle different types of OpenAI errors
+      // Detailed error parsing
       if (openaiError.response) {
         // HTTP error from OpenAI API
         errorMessage = openaiError.response.data?.error?.message || 
           `OpenAI API error: ${openaiError.response.status}`;
-        errorDetails = openaiError.response.data;
+        errorDetails = {
+          statusCode: openaiError.response.status,
+          errorData: openaiError.response.data
+        };
       } else if (openaiError.type === 'invalid_request_error') {
         // Specific handling for invalid request errors
         errorMessage = 'Invalid request to logo generation service. Please check your prompt.';
         errorDetails = {
           type: openaiError.type,
           param: openaiError.param,
-          code: openaiError.code
-        };
-      } else if (openaiError.code) {
-        // OpenAI specific error codes
-        errorMessage = `OpenAI Error: ${openaiError.code}`;
-        errorDetails = {
-          message: openaiError.message,
-          type: openaiError.type,
           code: openaiError.code
         };
       } else {
@@ -107,19 +124,20 @@ export async function POST(request) {
       }, { status: 500 });
     }
 
-  } catch (error) {
-    console.error("Unexpected Error in logo generation API:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
+  } catch (globalError) {
+    console.error("Unexpected Global Error in logo generation API:", {
+      name: globalError.name,
+      message: globalError.message,
+      stack: globalError.stack
     });
 
     return NextResponse.json(
       { 
         error: 'Unexpected error occurred during logo generation',
         details: {
-          message: error.message,
-          name: error.name
+          message: globalError.message,
+          name: globalError.name,
+          stack: globalError.stack
         }
       },
       { status: 500 }
@@ -127,30 +145,29 @@ export async function POST(request) {
   }
 }
 
-// Enhanced prompt sanitization function
-function sanitizePrompt(prompt) {
-  // More robust sanitization that preserves meaningful content
-  let sanitized = prompt
-    .replace(/[^\w\s.,!?:;()-]/g, '') // Remove special characters while keeping some punctuation
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim()
-    .substring(0, 1000); // Limit prompt length
+// Enhanced prompt construction function
+function constructEnhancedPrompt(originalPrompt) {
+  // Add more structure and clarity to the prompt
+  const baseInstructions = [
+    "Create a professional and modern logo design",
+    "Ensure the logo is clean, memorable, and versatile",
+    "Use high-contrast colors and clear shapes",
+    "Avoid overly complex or detailed designs",
+    "Make sure the logo looks good at different sizes"
+  ];
 
-  // Intelligent prompt reconstruction
-  const promptParts = sanitized.split(/[-,.]/).map(part => part.trim()).filter(part => part.length > 0);
-  
-  // Create a more structured and descriptive prompt
-  const reconstructedPrompt = [
-    `Logo design for ${promptParts[0] || 'Business'}`,
-    `Style: ${promptParts.find(part => part.includes('Logos') || part.includes('design')) || 'Minimalist Professional'}`,
-    `Color Theme: ${promptParts.find(part => part.includes('Palette') || part.includes('Color')) || 'Neutral Professional'}`,
-    'Create a clean, memorable, and versatile visual identity',
-    'Use simple geometric shapes and typography',
-    'Ensure professional and sophisticated appearance'
+  // Combine original prompt with additional instructions
+  const enhancedPrompt = [
+    originalPrompt,
+    ...baseInstructions
   ].join('. ');
 
-  // Final sanitization and length check
-  return reconstructedPrompt.substring(0, 1000);
+  // Final sanitization
+  return enhancedPrompt
+    .replace(/[^\w\s.,!?:;()-]/g, '') // Remove special characters
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim()
+    .substring(0, 1000); // Limit length
 }
 
 // Explicitly handle OPTIONS request for CORS
