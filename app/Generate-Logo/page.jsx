@@ -1,6 +1,5 @@
 "use client"
 import React, { useEffect, useState } from 'react'
-import Prompt from '../_data/Prompt';
 import axios from 'axios';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -10,19 +9,26 @@ import { useRouter } from 'next/navigation';
 import Lookup from '../_data/Lookup';
 
 function GenerateLogoPage() {
-    const [formData, setFormData] = useState();
+    const [formData, setFormData] = useState(null);
     const [logoData, setLogoData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const router = useRouter();
 
     useEffect(() => {
+        // Load data from localStorage on component mount
         if(typeof window !== 'undefined') {
-            const storage = localStorage.getItem('formData')
+            const storage = localStorage.getItem('formData');
+            
             if(storage) {
                 try {
                     const parsedData = JSON.parse(storage);
                     setFormData(parsedData);
+                    
+                    // Validate required fields
+                    if (!parsedData?.title) {
+                        router.push('/create');
+                    }
                 } catch (parseError) {
                     console.error('Error parsing stored form data:', parseError);
                     router.push('/create');
@@ -34,93 +40,75 @@ function GenerateLogoPage() {
         }
     }, [router]);
 
+    // Only trigger logo generation when formData is available
     useEffect(() => {
         if(formData?.title) {
-            GenerateAILogo();
+            generateLogo();
         }
     }, [formData]);
 
-    const GenerateAILogo = async () => {
+    const generateLogo = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            // Construct the prompt for the logo generation
-            const logoPrompt = Prompt.LOGO_PROMPT
-                .replace('{logoTitle}', formData?.title || 'Company Logo')
-                .replace('{logoDesc}', formData?.desc || 'Professional and modern logo design')
-                .replace('{logoColor}', formData?.palette || 'vibrant colors')
-                .replace('{logoDesign}', formData?.design?.title || 'modern')
-                .replace('{logoPrompt}', formData?.design?.prompt || '')
-                .replace('{logoIdea}', formData?.idea || 'best possible design');
+            // Use a minimal hardcoded prompt to test
+            const logoPrompt = "Create a simple modern logo with vibrant colors";
 
             console.log("Generating logo with prompt:", logoPrompt);
-            
-            try {
-                // Call the API to generate the logo
-                const response = await axios.post('/api/generate-logo', 
-                    { prompt: logoPrompt },
-                    {
-                        timeout: 45000, // Increased timeout to 45 seconds
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-                
-                // Check for error in response
-                if (response.data.error) {
-                    throw {
-                        message: response.data.error,
-                        details: response.data.details || {}
-                    };
-                }
 
-                if (!response.data.imageUrl) {
-                    throw new Error('No image URL returned from logo generation');
-                }
-
-                setLogoData(response.data);
-            } catch (axiosError) {
-                console.error('Axios Error Details:', {
-                    message: axiosError.message,
-                    response: axiosError.response?.data,
-                    status: axiosError.response?.status,
-                    headers: axiosError.response?.headers
-                });
-
-                throw axiosError;
+            // Validate the prompt before sending
+            if (!logoPrompt || logoPrompt.trim() === '') {
+                throw new Error('Generated prompt is empty or invalid');
             }
+
+            const response = await axios.post('/api/generate-logo', 
+                { prompt: logoPrompt },
+                {
+                    timeout: 60000, // 60 second timeout
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            // Check if response contains expected data
+            if (!response.data || response.data.error) {
+                throw new Error(response.data?.error || 'Failed to generate logo image');
+            }
+
+            if (!response.data.imageUrl) {
+                throw new Error('No image URL returned from logo generation');
+            }
+
+            setLogoData(response.data);
+            setLoading(false);
+            
         } catch (err) {
             console.error('Error generating logo:', err);
             
-            // More detailed error handling
+            // Enhanced error reporting
             let errorMessage = 'Failed to generate logo. Please try again.';
             let errorDetails = '';
             
             if (axios.isAxiosError(err)) {
                 if (err.response) {
-                    // Server responded with an error
-                    errorMessage = err.response.data.error || 
+                    errorMessage = err.response.data?.error || 
                         `Server error: ${err.response.status}`;
-                    errorDetails = JSON.stringify(err.response.data.details || {}, null, 2);
+                    errorDetails = JSON.stringify(err.response.data?.details || {}, null, 2);
                 } else if (err.request) {
-                    // Request made but no response received
-                    errorMessage = 'No response received from server. Please check your internet connection.';
+                    errorMessage = 'Request timeout. The server took too long to respond.';
                 } else {
-                    // Error setting up the request
-                    errorMessage = 'Error setting up the logo generation request.';
+                    errorMessage = err.message || 'Error setting up the request';
                 }
             } else if (err instanceof Error) {
-                errorMessage = err.message;
-                errorDetails = err.details ? JSON.stringify(err.details, null, 2) : '';
+                errorMessage = err.message || 'Unknown error occurred';
             }
 
             setError({
                 message: errorMessage,
                 details: errorDetails
             });
-        } finally {
             setLoading(false);
         }
     };
@@ -141,6 +129,7 @@ function GenerateLogoPage() {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl); // Clean up
         } catch (err) {
             console.error('Error downloading logo:', err);
             alert('Failed to download the logo. Please try again.');
@@ -175,7 +164,7 @@ function GenerateLogoPage() {
                         <div className="flex justify-center gap-4">
                             <Button 
                                 className="bg-[#ed1e61]" 
-                                onClick={() => GenerateAILogo()}
+                                onClick={generateLogo}
                             >
                                 <RefreshCw className="mr-2" /> Retry Generation
                             </Button>
@@ -216,7 +205,7 @@ function GenerateLogoPage() {
                             </Button>
                             <Button 
                                 variant="outline"
-                                onClick={() => GenerateAILogo()}
+                                onClick={generateLogo}
                             >
                                 <RefreshCw className="mr-2" /> Regenerate
                             </Button>

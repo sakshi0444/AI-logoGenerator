@@ -1,4 +1,5 @@
 "use client"
+
 import React, { useState, useEffect } from 'react'
 import LogoTitle from './_components/LogoTitle'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,8 @@ const CreateLogo = () => {
           setFormData(JSON.parse(storedData))
         } catch (error) {
           console.error('Error parsing stored form data:', error)
+          // Initialize with empty object if parse fails
+          setFormData({})
         }
       }
     }
@@ -44,18 +47,45 @@ const CreateLogo = () => {
   }
 
   const handleGenerateIdeas = () => {
+    // If we don't have an idea yet, set a default
+    if (!formData.idea) {
+      onHandleInputChange('idea', 'Sophisticated logo with modern brand essence')
+    }
+    
     // Mark that generation has been triggered
     setIdeaGenerated(true)
   }
 
   const proceedToResult = () => {
-    // Store the final formData in localStorage
-    if (formData && Object.keys(formData).length > 0) {
-      localStorage.setItem('formData', JSON.stringify(formData))
-      
-      // Navigate to the result page
-      router.push('/Generate-Logo')
+    setLoading(true)
+    
+    // Ensure we have minimal required data
+    const requiredData = {
+      title: formData.title || 'New Logo',
+      desc: formData.desc || 'Professional logo design',
+      palette: formData.palette || 'Let Us Select',
+      idea: formData.idea || 'Sophisticated logo with modern brand essence'
     }
+    
+    // If we don't have a design selected, use a default
+    if (!formData.design) {
+      requiredData.design = {
+        title: 'Modern Logo',
+        prompt: 'Create a modern, professional logo design with clean lines and balanced proportions'
+      }
+    }
+    
+    // Merge with existing data
+    const completeFormData = {
+      ...formData,
+      ...requiredData
+    }
+    
+    // Store the final formData in localStorage
+    localStorage.setItem('formData', JSON.stringify(completeFormData))
+    
+    // Navigate to the result page
+    router.push('/Generate-Logo')
   }
 
   const isStepValid = () => {
@@ -118,7 +148,7 @@ const CreateLogo = () => {
               <Button 
                 className='bg-[#ed1e61]' 
                 onClick={handleGenerateIdeas}
-                disabled={loading || !isStepValid()}
+                disabled={loading}
               >
                 <Wand2 className='mr-2' /> Generate Ideas
               </Button>
