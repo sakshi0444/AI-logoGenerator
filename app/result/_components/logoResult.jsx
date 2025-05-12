@@ -5,7 +5,7 @@ import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Lookup from '@/app/_data/Lookup';
-import Prompt from '@/app/_data/Prompt';
+import { LOGO_PROMPT, FALLBACK_LOGO_PROMPT } from '@/app/_data/Prompt';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -25,7 +25,7 @@ function LogoResult() {
           const parsedData = JSON.parse(storedData);
           
           // Validate parsed data has required fields
-          if (parsedData?.title && parsedData?.desc && parsedData?.design) {
+          if (parsedData?.title && parsedData?.desc) {
             setFormData(parsedData);
           } else {
             throw new Error('Incomplete logo data');
@@ -55,7 +55,7 @@ function LogoResult() {
       setError(null);
       
       // Construct the prompt for the logo generation using the existing LOGO_PROMPT template
-      const logoPrompt = Prompt.LOGO_PROMPT
+      const logoPrompt = LOGO_PROMPT
         .replace('{logoTitle}', formData.title || 'Company Logo')
         .replace('{logoDesc}', formData.desc || 'Professional logo design')
         .replace('{logoColor}', formData.palette || 'vibrant colors')
@@ -67,7 +67,10 @@ function LogoResult() {
       const response = await axios.post('/api/generate-logo', {
         prompt: logoPrompt,
       }, {
-        timeout: 60000 // Increased timeout to 60 seconds
+        timeout: 60000, // Increased timeout to 60 seconds
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
       // Validate response
@@ -82,12 +85,14 @@ function LogoResult() {
       
       // More detailed error handling
       let errorMessage = 'Failed to generate logo. Please try again.';
+      let errorDetails = '';
       
       if (axios.isAxiosError(err)) {
         if (err.response) {
           // Server responded with an error
-          errorMessage = err.response.data.error || 
+          errorMessage = err.response.data?.error || 
             `Server error: ${err.response.status}`;
+          errorDetails = JSON.stringify(err.response.data?.details || {}, null, 2);
         } else if (err.request) {
           // Request made but no response received
           errorMessage = 'No response received from server. Please check your internet connection.';
@@ -96,7 +101,10 @@ function LogoResult() {
         errorMessage = err.message;
       }
       
-      setError(errorMessage);
+      setError({
+        message: errorMessage,
+        details: errorDetails
+      });
       setLoading(false);
     }
   };
@@ -117,6 +125,7 @@ function LogoResult() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl); // Clean up
     } catch (err) {
       console.error('Error downloading logo:', err);
       alert('Failed to download the logo. Please try again.');
@@ -126,12 +135,6 @@ function LogoResult() {
   const handleRetry = () => {
     // Regenerate the logo
     generateLogo();
-  };
-
-  const handleStartOver = () => {
-    // Clear stored data and redirect to create page
-    localStorage.removeItem('formData');
-    router.push('/create');
   };
 
   return (
@@ -149,7 +152,16 @@ function LogoResult() {
           </div>
         ) : error ? (
           <div className="text-center py-10">
-            <h2 className="text-xl font-bold text-red-500 mb-4">{error}</h2>
+            <h2 className="text-xl font-bold text-red-500 mb-4">
+              {error.message || error}
+            </h2>
+            {error.details && (
+              <div className="bg-gray-100 p-4 rounded-lg mb-4 text-left overflow-x-auto">
+                <pre className="text-sm text-gray-700">
+                  {error.details}
+                </pre>
+              </div>
+            )}
             <div className="flex justify-center gap-4">
               <Button 
                 className="bg-[#ed1e61]" 
