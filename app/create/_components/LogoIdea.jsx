@@ -1,8 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import HeadingDescription from "./HeadingDescription";
-import axios from "axios";
-import Prompt from "@/app/_data/Prompt";
 import { Loader2Icon } from "lucide-react";
 
 function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
@@ -10,96 +8,40 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState(formData?.idea);
   const [error, setError] = useState(null);
-  const [generationAttempted, setGenerationAttempted] = useState(false);
+
+  // Predefined logo concept ideas for a cat service
+  const catServiceLogoIdeas = [
+    "Minimalist cat silhouette symbolizing care and precision",
+    "Elegant line art representing gentle pet handling",
+    "Modern geometric cat icon with professional undertones",
+    "Simplified paw print integrated with clean typography",
+    "Abstract cat outline showcasing movement and grace",
+    "Negative space design highlighting cat and service connection"
+  ];
 
   useEffect(() => {
-    if (
-      formData &&
-      formData.title &&
-      formData.desc &&
-      formData.design?.title &&
-      typeof window !== "undefined"
-    ) {
-      localStorage.setItem("formData", JSON.stringify(formData));
+    // Simulate idea generation when triggered
+    if (triggerGeneration) {
+      generateLogoIdeas();
     }
-  }, [formData]);
+  }, [triggerGeneration]);
 
-  useEffect(() => {
-    // Only attempt generation once when triggerGeneration becomes true
-    if (
-      triggerGeneration &&
-      !generationAttempted &&
-      formData?.title &&
-      formData?.desc &&
-      formData?.design?.title &&
-      formData?.design?.prompt
-    ) {
-      setGenerationAttempted(true);
-      generateLogoDesignIdea();
-    }
-  }, [triggerGeneration, generationAttempted, formData]);
+  const generateLogoIdeas = () => {
+    setLoading(true);
+    
+    // Use predefined ideas with some randomization
+    const generatedIdeas = [...catServiceLogoIdeas]
+      .sort(() => 0.5 - Math.random()) // Shuffle array
+      .slice(0, 4); // Take first 4 ideas
 
-  const generateLogoDesignIdea = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    setIdeas(generatedIdeas);
+    setLoading(false);
 
-      // Create the API endpoint for our mock ideas
-      // In production, this would call your actual API
-      // For now, let's simulate a response
-      console.log("Would generate ideas with formData:", formData);
-      
-      // Mock response if API isn't available
-      setTimeout(() => {
-        const mockIdeas = [
-          `${formData.design.title} for ${formData.title}`,
-          `Modern ${formData.title} design`,
-          `Creative ${formData.title} emblem`,
-          `Professional ${formData.title} symbol`,
-          `Unique ${formData.title} mark`
-        ];
-        
-        setIdeas(mockIdeas);
-        setLoading(false);
-        
-        // Auto-select first idea if none is selected yet
-        if (!selectedOption) {
-          setSelectedOption(mockIdeas[0]);
-          onHandleInputChange(mockIdeas[0]);
-        }
-      }, 1500);
-      
-      // Uncomment this for real API call when ready:
-      /*
-      const PROMPT = Prompt.DESIGN_IDEA_PROMPT
-        .replace("{logoType}", formData.design.title)
-        .replace("{logoTitle}", formData.title)
-        .replace("{logoDesc}", formData.desc)
-        .replace("{logoPrompt}", formData.design.prompt);
-
-      console.log("Generating ideas with prompt:", PROMPT);
-
-      const result = await axios.post("/api/ai-design-ideas", {
-        prompt: PROMPT,
-      });
-
-      if (result.data?.ideas && Array.isArray(result.data.ideas)) {
-        setIdeas(result.data.ideas);
-        
-        // Auto-select first idea if none is selected yet
-        if (result.data.ideas.length > 0 && !selectedOption) {
-          setSelectedOption(result.data.ideas[0]);
-          onHandleInputChange(result.data.ideas[0]);
-        }
-      } else {
-        throw new Error("Invalid API response format");
-      }
-      */
-      
-    } catch (error) {
-      console.error("Error generating logo ideas:", error);
-      setError("Failed to generate ideas. Please try again.");
-      setLoading(false);
+    // Auto-select first idea if no previous selection
+    if (!selectedOption && generatedIdeas.length > 0) {
+      const firstIdea = generatedIdeas[0];
+      setSelectedOption(firstIdea);
+      onHandleInputChange(firstIdea);
     }
   };
 
@@ -107,7 +49,7 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
     <div className="my-10">
       <HeadingDescription
         title="Select Your Design Idea"
-        description="Choose a design style that aligns with your vision, or skip to receive a random suggestion."
+        description="Choose a design concept that best represents your cat service brand."
       />
 
       <div className="flex items-center justify-center">
@@ -125,7 +67,7 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
                 onHandleInputChange(item);
               }}
               className={`p-2 rounded-full border px-3 cursor-pointer hover:border-primary ${
-                selectedOption === item && "border-primary"
+                selectedOption === item ? "border-primary" : ""
               }`}
             >
               {item}
@@ -134,14 +76,17 @@ function LogoIdea({ formData, onHandleInputChange, triggerGeneration }) {
 
         <h2
           onClick={() => {
-            setSelectedOption("Let AI Select the best idea");
-            onHandleInputChange("Let AI Select the best idea");
+            const aiSelectedIdea = "Sophisticated cat service logo with modern elegance";
+            setSelectedOption(aiSelectedIdea);
+            onHandleInputChange(aiSelectedIdea);
           }}
           className={`p-2 rounded-full border px-3 cursor-pointer hover:border-primary ${
-            selectedOption === "Let AI Select the best idea" && "border-primary"
+            selectedOption === "Sophisticated cat service logo with modern elegance" 
+              ? "border-primary" 
+              : ""
           }`}
         >
-          Let AI Select the best idea
+          Let AI Select the Best Idea
         </h2>
       </div>
     </div>

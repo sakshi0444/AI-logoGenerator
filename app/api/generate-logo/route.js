@@ -13,7 +13,7 @@ export async function POST(request) {
     const prompt = body.prompt;
 
     console.log("Received logo generation request");
-    console.log("Prompt:", prompt);
+    console.log("Original Prompt:", prompt);
 
     if (!prompt) {
       return NextResponse.json({ 
@@ -22,7 +22,7 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Validate and sanitize the prompt
+    // Enhanced prompt sanitization
     const sanitizedPrompt = sanitizePrompt(prompt);
 
     console.log("Sanitized prompt for logo generation:", sanitizedPrompt);
@@ -127,27 +127,30 @@ export async function POST(request) {
   }
 }
 
-// Prompt sanitization function with more robust validation
+// Enhanced prompt sanitization function
 function sanitizePrompt(prompt) {
-  // Remove potentially problematic characters
+  // More robust sanitization that preserves meaningful content
   let sanitized = prompt
-    .replace(/[^\w\s.,!?-]/g, '') // Remove special characters
+    .replace(/[^\w\s.,!?:;()-]/g, '') // Remove special characters while keeping some punctuation
+    .replace(/\s+/g, ' ') // Normalize whitespace
     .trim()
     .substring(0, 1000); // Limit prompt length
 
-  // Ensure the prompt meets DALL-E requirements
-  const minPromptLength = 10;
-  const maxPromptLength = 1000;
+  // Intelligent prompt reconstruction
+  const promptParts = sanitized.split(/[-,.]/).map(part => part.trim()).filter(part => part.length > 0);
   
-  if (sanitized.length < minPromptLength) {
-    sanitized += ' Create a professional, clean, and modern logo design with clear aesthetics.';
-  }
-  
-  if (sanitized.length > maxPromptLength) {
-    sanitized = sanitized.substring(0, maxPromptLength);
-  }
+  // Create a more structured and descriptive prompt
+  const reconstructedPrompt = [
+    `Logo design for ${promptParts[0] || 'Business'}`,
+    `Style: ${promptParts.find(part => part.includes('Logos') || part.includes('design')) || 'Minimalist Professional'}`,
+    `Color Theme: ${promptParts.find(part => part.includes('Palette') || part.includes('Color')) || 'Neutral Professional'}`,
+    'Create a clean, memorable, and versatile visual identity',
+    'Use simple geometric shapes and typography',
+    'Ensure professional and sophisticated appearance'
+  ].join('. ');
 
-  return sanitized;
+  // Final sanitization and length check
+  return reconstructedPrompt.substring(0, 1000);
 }
 
 // Explicitly handle OPTIONS request for CORS
