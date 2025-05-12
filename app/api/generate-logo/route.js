@@ -16,7 +16,6 @@ export async function POST(request) {
     console.log("Prompt:", prompt);
 
     if (!prompt) {
-      console.error("No prompt provided");
       return NextResponse.json({ 
         error: 'Prompt is required',
         status: 400 
@@ -56,25 +55,34 @@ export async function POST(request) {
       });
 
     } catch (openaiError) {
-      console.error("Complete OpenAI Error Object:", JSON.stringify(openaiError, null, 2));
-      console.error("OpenAI Error Name:", openaiError.name);
-      console.error("OpenAI Error Message:", openaiError.message);
-      console.error("OpenAI Error Code:", openaiError.code);
-      
-      // Log the full error response if available
-      if (openaiError.response) {
-        console.error("OpenAI Response Error:", JSON.stringify(openaiError.response.data, null, 2));
-      }
+      // Comprehensive error logging
+      console.error("OpenAI Error Details:", {
+        name: openaiError.name,
+        message: openaiError.message,
+        code: openaiError.code,
+        type: openaiError.type,
+        param: openaiError.param,
+        status: openaiError.status
+      });
 
-      // More comprehensive error handling
+      // More detailed error response
       let errorMessage = 'Failed to generate logo through AI service';
       let errorDetails = {};
 
+      // Handle different types of OpenAI errors
       if (openaiError.response) {
-        // Axios-style error handling
+        // HTTP error from OpenAI API
         errorMessage = openaiError.response.data?.error?.message || 
           `OpenAI API error: ${openaiError.response.status}`;
         errorDetails = openaiError.response.data;
+      } else if (openaiError.type === 'invalid_request_error') {
+        // Specific handling for invalid request errors
+        errorMessage = 'Invalid request to logo generation service. Please check your prompt.';
+        errorDetails = {
+          type: openaiError.type,
+          param: openaiError.param,
+          code: openaiError.code
+        };
       } else if (openaiError.code) {
         // OpenAI specific error codes
         errorMessage = `OpenAI Error: ${openaiError.code}`;
@@ -88,7 +96,8 @@ export async function POST(request) {
         errorMessage = openaiError.message || 'Unexpected error in logo generation';
         errorDetails = {
           name: openaiError.name,
-          message: openaiError.message
+          message: openaiError.message,
+          stack: openaiError.stack
         };
       }
 
@@ -99,29 +108,43 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error("General Error in logo generation API:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    console.error("Unexpected Error in logo generation API:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
 
     return NextResponse.json(
       { 
-        error: error.message || 'Unexpected error occurred during logo generation',
-        details: error
+        error: 'Unexpected error occurred during logo generation',
+        details: {
+          message: error.message,
+          name: error.name
+        }
       },
       { status: 500 }
     );
   }
 }
 
-// Prompt sanitization function
+// Prompt sanitization function with more robust validation
 function sanitizePrompt(prompt) {
-  // Remove any potentially problematic characters or patterns
+  // Remove potentially problematic characters
   let sanitized = prompt
     .replace(/[^\w\s.,!?-]/g, '') // Remove special characters
     .trim()
     .substring(0, 1000); // Limit prompt length
 
   // Ensure the prompt meets DALL-E requirements
-  if (sanitized.length < 10) {
-    sanitized += ' Create a professional logo design with clean, modern aesthetics.';
+  const minPromptLength = 10;
+  const maxPromptLength = 1000;
+  
+  if (sanitized.length < minPromptLength) {
+    sanitized += ' Create a professional, clean, and modern logo design with clear aesthetics.';
+  }
+  
+  if (sanitized.length > maxPromptLength) {
+    sanitized = sanitized.substring(0, maxPromptLength);
   }
 
   return sanitized;
