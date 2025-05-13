@@ -7,6 +7,7 @@ import { Download, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Lookup from '../_data/Lookup';
+import { createLogoPrompt } from '../_data/Prompt';
 
 function GenerateLogoPage() {
     const [formData, setFormData] = useState(null);
@@ -52,8 +53,8 @@ function GenerateLogoPage() {
             setLoading(true);
             setError(null);
 
-            // Use a minimal hardcoded prompt to test
-            const logoPrompt = "Create a simple modern logo with vibrant colors";
+            // Use our improved prompt generator
+            const logoPrompt = createLogoPrompt(formData);
 
             console.log("Generating logo with prompt:", logoPrompt);
 
@@ -62,15 +63,15 @@ function GenerateLogoPage() {
                 throw new Error('Generated prompt is empty or invalid');
             }
 
-            const response = await axios.post('/api/generate-logo', 
-                { prompt: logoPrompt },
-                {
-                    timeout: 60000, // 60 second timeout
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            const response = await axios({
+                method: 'post',
+                url: '/api/generate-logo',
+                data: { prompt: logoPrompt },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000 // 60 second timeout
+            });
             
             // Check if response contains expected data
             if (!response.data || response.data.error) {
@@ -93,9 +94,12 @@ function GenerateLogoPage() {
             
             if (axios.isAxiosError(err)) {
                 if (err.response) {
-                    errorMessage = err.response.data?.error || 
-                        `Server error: ${err.response.status}`;
-                    errorDetails = JSON.stringify(err.response.data?.details || {}, null, 2);
+                    // This is where the 405 error is being caught
+                    errorMessage = `Server error: ${err.response.status} - ${err.response.statusText}`;
+                    if (err.response.status === 405) {
+                        errorMessage = 'API Error: Method Not Allowed. Please check the API endpoint configuration.';
+                    }
+                    errorDetails = JSON.stringify(err.response.data || {}, null, 2);
                 } else if (err.request) {
                     errorMessage = 'Request timeout. The server took too long to respond.';
                 } else {

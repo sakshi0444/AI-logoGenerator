@@ -1,11 +1,34 @@
 // app/api/generate-logo/route.js
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import OpenAI from 'openai';
 
-// Enable CORS for this endpoint
 export const config = {
   runtime: 'edge',
   regions: ['iad1'],
+};
+
+// Initialize OpenAI client with Nebius configuration
+const getClient = () => {
+  const apiKey = process.env.NEBIUS_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('NEBIUS_API_KEY is not defined in environment variables');
+    return null;
+  }
+
+  const HELICONE_API_KEY = process.env.HELICONE_API_KEY;
+
+  const clientOptions = {
+    apiKey,
+    baseURL: HELICONE_API_KEY
+      ? "https://nebius.helicone.ai/v1/"
+      : "https://api.studio.nebius.ai/v1/",
+    ...(HELICONE_API_KEY && {
+      defaultHeaders: { "Helicone-Auth": `Bearer ${HELICONE_API_KEY}` },
+    }),
+  };
+
+  return new OpenAI(clientOptions);
 };
 
 // Define both GET and POST methods to avoid 405 errors
@@ -16,16 +39,18 @@ export async function GET(request) {
     example: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: { prompt: "A modern tech company logo with blue and green colors" }
+      body: { 
+        prompt: "A modern tech company logo with blue and green colors",
+        model: "stability-ai/sdxl",
+        size: "512x512",
+        quality: "standard"
+      }
     }
   }, { status: 200 });
 }
 
 export async function POST(request) {
   try {
-    // Log API key first few characters for debugging
-    console.log("AI Guru Lab API Key (first 5 chars):", process.env.AI_GURU_LAB_API_KEY?.substring(0, 5));
-    
     let body;
     try {
       // Parse the JSON request body
@@ -38,7 +63,12 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    const { prompt } = body;
+    const { 
+      prompt,
+      model = 'stability-ai/sdxl',
+      size = '512x512',
+      quality = 'standard',
+    } = body;
     
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
       return NextResponse.json({
@@ -48,34 +78,36 @@ export async function POST(request) {
     
     console.log("Received logo generation prompt:", prompt);
     
-    // Make a request to the AI Guru Lab API for image generation
+    // Initialize OpenAI client with Nebius configuration
+    const client = getClient();
+    
+    // For testing purposes, return a placeholder image URL if API key is missing
+    if (!client) {
+      console.warn("Missing API key - returning placeholder image");
+      return NextResponse.json({
+        imageUrl: "https://via.placeholder.com/800x800/FF0000/FFFFFF?text=API+Key+Missing",
+        prompt: prompt
+      });
+    }
+    
+    // Make a request to the Nebius API for image generation
     try {
-      // Using the correct endpoint format based on their service
-      const response = await axios({
-        method: 'post',
-        url: 'https://www.aigurulab.tech/api/images/generate',
-        data: {
-          prompt: prompt,
-          n: 1, // Generate 1 image
-          size: "1024x1024", // Square format for logos
-          response_format: "url", // Get URL response
-          quality: "hd", // High quality
-          style: "vibrant" // Good for logos
-        },
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.AI_GURU_LAB_API_KEY}`,
-        },
-        timeout: 60000, // 60 second timeout
+      const response = await client.images.generate({
+        model: model,
+        prompt: prompt,
+        response_format: "url",
+        size: size,
+        quality: quality,
+        n: 1,
       });
       
       // Check for valid response
-      if (!response.data || !response.data.data || !response.data.data[0] || !response.data.data[0].url) {
-        throw new Error('Invalid response from AI Guru Lab API');
+      if (!response.data || !response.data[0] || !response.data[0].url) {
+        throw new Error('Invalid response from Nebius API');
       }
       
       // Extract the image URL
-      const imageUrl = response.data.data[0].url;
+      const imageUrl = response.data[0].url;
       console.log("Successfully generated logo image");
       
       return NextResponse.json({
@@ -84,52 +116,11 @@ export async function POST(request) {
       });
       
     } catch (apiError) {
-      console.error("AI Guru Lab API Error:", apiError.response ? apiError.response.data : apiError.message);
-      
-      // If we have a 404 error, try an alternative endpoint
-      if (apiError.response?.status === 404) {
-        try {
-          console.log("Trying alternative endpoint...");
-          
-          // Alternative endpoint attempt
-          const altResponse = await axios({
-            method: 'post',
-            url: 'https://www.aigurulab.tech/api/v1/images/generations',
-            data: {
-              prompt: prompt,
-              n: 1,
-              size: "1024x1024",
-              response_format: "url",
-              quality: "hd",
-              style: "vibrant"
-            },
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.AI_GURU_LAB_API_KEY}`,
-            },
-            timeout: 60000,
-          });
-          
-          if (!altResponse.data || !altResponse.data.data || !altResponse.data.data[0] || !altResponse.data.data[0].url) {
-            throw new Error('Invalid response from alternative API endpoint');
-          }
-          
-          const imageUrl = altResponse.data.data[0].url;
-          console.log("Successfully generated logo image using alternative endpoint");
-          
-          return NextResponse.json({
-            imageUrl: imageUrl,
-            prompt: prompt,
-          });
-        } catch (altError) {
-          console.error("Alternative endpoint error:", altError.response ? altError.response.data : altError.message);
-          throw altError; // Re-throw to be caught by the outer catch
-        }
-      }
+      console.error("Nebius API Error:", apiError.response ? apiError.response.data : apiError.message);
       
       const status = apiError.response?.status || 500;
       return NextResponse.json({
-        error: apiError.message || 'Error communicating with AI Guru Lab API',
+        error: apiError.message || 'Error communicating with Nebius API',
         details: apiError.response?.data || {},
       }, { status });
     }
