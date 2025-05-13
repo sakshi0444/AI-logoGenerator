@@ -1,3 +1,4 @@
+// app/Generate-Logo/page.jsx
 "use client"
 import React, { useEffect, useState } from 'react'
 import axios from 'axios';
@@ -94,7 +95,6 @@ function GenerateLogoPage() {
             
             if (axios.isAxiosError(err)) {
                 if (err.response) {
-                    // This is where the 405 error is being caught
                     errorMessage = `Server error: ${err.response.status} - ${err.response.statusText}`;
                     if (err.response.status === 405) {
                         errorMessage = 'API Error: Method Not Allowed. Please check the API endpoint configuration.';

@@ -1,3 +1,4 @@
+// app/result/_components/LogoResult.jsx
 "use client"
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Lookup from '@/app/_data/Lookup';
-import { LOGO_PROMPT, FALLBACK_LOGO_PROMPT } from '@/app/_data/Prompt';
+import { createLogoPrompt } from '@/app/_data/Prompt';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -54,14 +55,8 @@ function LogoResult() {
       setLoading(true);
       setError(null);
       
-      // Construct the prompt for the logo generation using the existing LOGO_PROMPT template
-      const logoPrompt = LOGO_PROMPT
-        .replace('{logoTitle}', formData.title || 'Company Logo')
-        .replace('{logoDesc}', formData.desc || 'Professional logo design')
-        .replace('{logoColor}', formData.palette || 'vibrant colors')
-        .replace('{logoDesign}', formData.design?.title || 'modern')
-        .replace('{logoPrompt}', formData.design?.prompt || '')
-        .replace('{logoIdea}', formData.idea || 'best possible design');
+      // Use the createLogoPrompt function to generate the prompt
+      const logoPrompt = createLogoPrompt(formData);
       
       // Call the API to generate the logo
       const response = await axios.post('/api/generate-logo', {
